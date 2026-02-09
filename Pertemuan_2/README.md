@@ -312,20 +312,19 @@ Model yang terbentuk adalah sebagai berikut:
 
 $$\hat{Y} = 84.2552 + -0.9377205 X_1$$
 
-dengan Y adalah Indeks Pembangunan Masyarakat dan X1 adalah Rata-Rata
-Lama Sekolah (Bukan model X5 yang sedang dipakai).
+dengan Y adalah Indeks Pembangunan Masyarakat dan X3 adalah Persentase Penduduk Miskin.
 
 Didapatkan nilai $\hat\beta_0 = 84.2552$ artinya nilai dugaan rataan
-indeks pembangunan manusia ketika rata-rata lama sekolah bernilai 0
-tahun adalah 84.2552, akan tetapi nilai 0 tidak ada dalam selang
-pengamatan rata-rata lama sekolah sehingga $\hat\beta_0$ tidak dapat
+indeks pembangunan manusia ketika Persentase Penduduk Miskin bernilai 0 adalah 84.2552, akan tetapi nilai 0 tidak ada dalam selang
+pengamatan Persentase Penduduk Miskin sehingga $\hat\beta_0$ tidak dapat
 didefinisikan lebih lanjut
 
 Nilai $\hat\beta_1 = -0.9377205$ artinya nilai dugaan perubahan dugaan
-rataan Indeks Pembangunan Manusia jika Rata-rata lama sekolah berubah
-satu tahun adalah sebesar -0.9377205
+rataan Indeks Pembangunan Manusia jika Persentase Penduduk Miskin berubah
+satu bagian adalah sebesar -0.9377205
 
 Koefisien determinasi yang dihasilkan adalah 0.48314 atau 48.314%
-artinya keragaman persentase penduduk miskin yang dapat dijelaskan oleh
-persentase akses sanitasi layak adalah sebesar 48.314%, sisanya yaitu
+artinya keragaman Indeks Pembangunan Manusia yang dapat dijelaskan oleh
+Persentase Penduduk Miskin adalah sebesar 48.314%, sisanya yaitu
 51.686% dijelaskan oleh peubah lain yang tidak dimasukkan dalam model.
+
