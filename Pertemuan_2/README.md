@@ -132,9 +132,6 @@ boxplot(data$X3)
 ### Koefisien Regresi
 
 $\hat{y_i} = \hat{\beta_0} + \hat{\beta_1} x_{i}, i = 1,2, ..., n$
-$\hat{\beta_1} = \frac{\sum(y_i - \bar{y}) - \sum(x_i - \bar{x})}{\sum(x_i - \bar{x})^2} = \frac{S_{xx}{S_{xy} atau$
-$\hat{\beta_1} = \frac{\sum (x_iy)-\frac{\sum(x_i)\sum(y)}{n}}{\sum(x_i^2)-\frac{\sum(x_i^2)}{n}}$
-$\hat{\beta_0} = \bar{y} - \hat{\beta_1} \bar{x}$
 
 ``` r
 x <- data$X3
@@ -327,4 +324,5 @@ Koefisien determinasi yang dihasilkan adalah 0.48314 atau 48.314%
 artinya keragaman Indeks Pembangunan Manusia yang dapat dijelaskan oleh
 Persentase Penduduk Miskin adalah sebesar 48.314%, sisanya yaitu
 51.686% dijelaskan oleh peubah lain yang tidak dimasukkan dalam model.
+
 
