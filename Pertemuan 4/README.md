@@ -29,7 +29,7 @@ head(X)
 e  <- rnorm(n,0,3)
 y <- 5 + 3*x1 + 2*x2 + e
 rand.comp <- data.frame(e,y)
-head(rand.comp)
+rand.comp
 ```
 
     ##               e        y
@@ -136,7 +136,7 @@ head(rand.comp)
 
 ``` r
 dt <- data.frame(y,x1,x2)
-head(dt)
+dt
 ```
 
     ##            y        x1           x2
@@ -307,7 +307,7 @@ df
 
 ``` r
 y_duga <- b0+b1*x1+b2*x2
-Y <- data.frame(y,y_duga);head(Y)
+Y <- data.frame(y,y_duga);Y
 ```
 
     ##            y   y_duga
@@ -618,4 +618,5 @@ penduga
 Berdasar perbandingan ini diperoleh hasil yang sama yang artinya
 penggunaan matriks secara manual sudah tepat dalam memodelkan regresi
 linear berganda bergitu pula sebaliknya.
+
 
