@@ -1,0 +1,198 @@
+---
+title: "Praktikum 4 Anreg"
+author: "Helmi Falah & Cameliya Ulya"
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::readthedown
+---
+
+# Bangkitkan Data
+
+```{r}
+set.seed(2026)
+n <- 100
+p <- 3
+
+x1 <- runif(n,5,15)
+x2 <- rnorm(n,3,3)
+x0 <- rep(1,n)
+X  <- data.frame(x0,x1,x2)
+X
+```
+
+```{r}
+e  <- rnorm(n,0,3)
+y <- 5 + 3*x1 + 2*x2 + e
+rand.comp <- data.frame(e,y)
+rand.comp
+```
+
+```{r}
+dt <- data.frame(y,x1,x2)
+dt
+```
+
+# eksplorasi Data
+
+```{r}
+par(mfrow=c(1,2))
+plot(x1, y, pch=19)
+plot(x2, y, pch=19)
+```
+
+# Model Regresi Dengan Matriks
+
+## Parameter Regresi
+
+```{r}
+y <- as.matrix(y)
+X <- as.matrix(cbind(x0,x1,x2))
+b <- solve(t(X)%*%X)%*%t(X)%*%y;round(b,4)
+```
+
+```{r}
+b0<-b[1];b0
+```
+
+```{r}
+b1<-b[2];b1
+```
+
+```{r}
+b2<-b[3];b2
+```
+
+Didapatkan persamaan regresi yaitu $y = 6.123 + 2.915x_1 + 2.015x_2$
+
+## Koefisien Determinasi dan Penyesuaiannya
+
+```{r}
+sigma_kuadrat <- (t(y)%*%y-t(b)%*%t(X)%*%y)/(n-p)
+Res_se <- sqrt(sigma_kuadrat)
+round(Res_se,3)
+```
+```{r}
+df <- n-p
+df
+```
+```{r}
+y_duga <- b0+b1*x1+b2*x2
+Y <- data.frame(y,y_duga);Y
+```
+
+```{r}
+R_squared <- (cor(y,y_duga))^2;round(R_squared,4)
+```
+
+```{r}
+R_squared_adj <- 1-((1-R_squared)*(n-1)/(n-p));round(R_squared_adj,4)
+```
+
+## Uji F dan Standar Error Parameter
+
+```{r}
+KTReg <- sum((y_duga-mean(y))^2)/(p-1)
+galat <- y-(b0+b1*x1+b2*x2)
+KTG   <- sum(galat^2)/(n-p)
+Fhit  <- KTReg/KTG;round(Fhit,0)
+```
+
+```{r}
+dbreg <- p-1;dbreg
+```
+
+```{r}
+dbg <- n-p;dbg
+```
+
+```{r}
+pf(Fhit, dbreg, dbg, lower.tail = F)
+```
+
+```{r}
+se_b <- sqrt(sigma_kuadrat[1]*solve(t(X)%*%X))
+```
+
+```{r}
+cov_beta <- sigma_kuadrat[1] * solve(t(X) %*% X)
+se_b <- sqrt(diag(cov_beta)); round(se_b,4)
+```
+
+## Signifikansi Parameter (nilai t)
+
+```{r}
+t_b0 <- b0/se_b[1];round(t_b0,2)
+```
+
+```{r}
+2*pt(-abs(t_b0 ),df <- n-p)
+```
+
+```{r}
+t_b1 <- b1/se_b[2];round(t_b1,2)
+```
+
+```{r}
+2*pt(-abs(t_b1 ),df <- n-p)
+```
+
+```{r}
+t_b2 <- b2/se_b[3];round(t_b2,2)
+```
+
+```{r}
+2*pt(-abs(t_b2 ),df <- n-p)
+```
+
+## Selang Kepercayaan $(1-\alpha)*100%$
+
+```{r}
+t <- qt(.975, df <- n-p)
+
+BB_b0 <- b0-t*se_b[1]
+BA_b0 <- b0+t*se_b[1]
+
+BB_b1 <- b1-t*se_b[2]
+BA_b1 <- b1+t*se_b[2]
+
+BB_b2 <- b2-t*se_b[3]
+BA_b2 <- b2+t*se_b[3]
+
+Batas.Bawah <- as.matrix(c(round(BB_b0,6),round(BB_b1,6),round(BB_b2,6)))
+Batas.Atas <- as.matrix(c(round(BA_b0,6),round(BA_b1,6),round(BA_b2,6)))
+
+Selang.Kepercayaan <- cbind(Batas.Bawah, Batas.Atas)
+colnames(Selang.Kepercayaan ) <- c("Batas bawah Selang (2.5%)", "Batas atas Selang (97.5%)")
+rownames(Selang.Kepercayaan ) <- c("Intersept", "b1", "b2")
+Selang.Kepercayaan
+```
+
+# Model Regresi Dengan Fungsi lm()
+
+Dalam penggunaan fungsi `lm`, kita akan memperoleh secara langsung nilai-nilai pada pemodelan regresi dari data yang kita miliki. Hanya dengan mengeluarkan summary, anova dan ditambah confint dari model yang terbentuk maka dapat diperoleh nilai parameter, signifikansinya, standar eror, koefisien determinasi hingga selang kepercayaannya.
+
+```{r}
+model_reg <- lm(y~x1+x2, data= dt)
+summary(model_reg)
+```
+Didapatkan persamaan regresi yaitu $y = 6.123 + 2.915x_1 + 2.015x_2$
+
+```{r}
+anova(model_reg)
+```
+
+```{r}
+confint(model_reg, level = 0.95)
+```
+
+# Perbandingan Hasil
+
+```{r}
+koef<- as.matrix(model_reg$coefficients)
+penduga <- cbind(b, koef)
+colnames(penduga) <- c('matriks', 'fungsi lm')
+rownames(penduga) <- c("intersep", "b1", "b2")
+penduga
+```
+
+Berdasar perbandingan ini diperoleh hasil yang sama yang artinya penggunaan matriks secara manual sudah tepat dalam memodelkan regresi linear berganda bergitu pula sebaliknya.
