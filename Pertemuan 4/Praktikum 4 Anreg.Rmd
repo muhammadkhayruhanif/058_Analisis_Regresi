@@ -1,6 +1,6 @@
 ---
 title: "Praktikum 4 Anreg"
-author: "Helmi Falah & Cameliya Ulya"
+author: "Muhammad Khayruhanif"
 date: "`r Sys.Date()`"
 output: 
   rmdformats::readthedown
@@ -17,7 +17,7 @@ x1 <- runif(n,5,15)
 x2 <- rnorm(n,3,3)
 x0 <- rep(1,n)
 X  <- data.frame(x0,x1,x2)
-X
+Head(X)
 ```
 
 ```{r}
@@ -196,3 +196,4 @@ penduga
 ```
 
 Berdasar perbandingan ini diperoleh hasil yang sama yang artinya penggunaan matriks secara manual sudah tepat dalam memodelkan regresi linear berganda bergitu pula sebaliknya.
+
