@@ -1,0 +1,268 @@
+---
+title: "Praktikum 5 Anreg"
+author: "Helmi Falah"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown
+---
+
+# Library
+
+```{r}
+library(readxl) # untuk membaca data
+library(GGally) # untuk menghasilkan matriks hubungan antarpeubah
+library(corrplot) # untuk menghasilkan matriks korelasi
+library(dplyr) # untuk manipulasi data
+library(car) # untuk memeriksa multikolinearitas
+```
+
+# Data
+
+```{r}
+data <- read_excel("C:\\Users\\Helmi Falah\\Downloads\\Data NTT.xlsx")
+head(data) # menampilkan sekian data awal
+str(data) # menampilkan tipe data setiap peubah
+summary(data) # menampilkan ringkasan data
+```
+
+Data yang digunakan adalah data dari 22 Kabupaten/Kota di Nusa Tenggara Timur pada Tahun 2022 dengan 1 peubah respon yaitu Persentase Penduduk Miskin (PPM) dan 8 peubah penjelas yang terdiri dari 7 peubah kuantitatif dan 1 peubah kualitatif. Peubah tersebut adalah Indeks Pembangunan Manusia (IPM), rata-rata lama sekolah (RLS), persentase penduduk buta huruf (PBH), persentase akses sanitasi layak (ASL), persentase tingkat pengangguran terbuka (TPT), Produk Domestik Regional Bruto (PDRB), persentase penduduk yang menggunakan kayu bakar (PKB), dan kategori umur harapan hidup (UHH).
+
+Untuk mempermudah dalam komputasi, karena peubah wilayah tidak digunakan, maka dapat dihapus. Pada praktikum kali ini akan dilakukan dua pemodelan, yakni model dengan seluruh peubah kuantitatif dan model dengan adanya peubah kualitatif, supaya lebih mudah dalam analisisnya maka akan dibentuk dua data berbeda.
+
+```{r}
+data <- select(data, -Wilayah)
+dt <- select(data, -UHH)
+```
+
+# Eksplorasi data
+
+```{r}
+hist(dt$PPM, main = "Sebaran Persentase Penduduk Miskin")
+```
+
+```{r}
+boxplot(dt$PPM, main = "Sebaran Persentase Penduduk Miskin")
+```
+
+```{r}
+ggpairs(dt,
+        upper = list(continuous = wrap('cor', size = 3)),
+        title = "Matriks Scatterplot Data")
+
+```
+
+```{r}
+cor_matrix <- cor(dt, use = "complete.obs")
+
+corrplot(cor_matrix, method = "color", type = "lower",
+         col = colorRampPalette(c("red", "white", "blue"))(200),
+         addCoef.col = "black", tl.col = "black", tl.srt = 35)
+```
+
+Hasil matriks scatter plot dan korelasi menunjukkan bahwa peubah respon PPM memiliki hubungan positif dengan PBH dan PKB, serta hubungan negatif dengan IPM, RLS, ASL, TPT, dan PDRB. Semua peubah ini secara signifikan memiliki korelasi dengan PPM.
+
+Selain itu, terdapat banyak korelasi tinggi antar peubah penjelas, baik lebih dari 0.5 maupun kurang dari -0.5. Beberapa di antaranya adalah:
+1. RLS dan IPM memiliki korelasi 0.84.
+2. PDRB dengan IPM dan RLS masing-masing sebesar 0.86 dan 0.82.
+3. PKB dengan IPM dan PDRB menunjukkan korelasi negatif yang cukup kuat, yaitu -0.85 dan -0.9.
+
+Korelasi yang tinggi ini mengindikasikan adanya potensi multikolinearitas, yang dapat mempengaruhi keakuratan model yang akan dibentuk.
+
+# Pemodelan
+
+## Tanpa Fungsi
+
+Perhitungan nilai $\hat{\beta}$ secara matriks dapat dilakukan dengan rumus berikut.
+
+$$\hat{\beta} = (X'X)^{-1} X'y$$
+
+```{r}
+# pembentukan matriks
+n <- nrow(dt)
+x0 <- rep(1,n)
+x <- data.frame(x0, dt$IPM, dt$RLS, dt$PBH, dt$ASL,
+                dt$TPT, dt$PDRB, dt$PKB)
+x <- as.matrix(x)
+y <- dt$PPM
+```
+
+```{r}
+beta_duga <- solve(t(x)%*%x)%*%t(x)%*%y
+beta_duga
+```
+
+Hasil tersebut menjelaskan bahwa persamaan yang terbentuk adalah
+$$\hat{PPM}=49.5342−0.7714IPM+0.6928RLS+0.4450PBH−0.0624ASL−2.5649TPT+0.0008PDRB+0.2259PKB$$
+Selang kepercayaan dan pengujian signifikansi setiap parameter dapat dilakukan dengan menghitung keragaman tiap dugaan parameter. Secara umum, nilai ragam dugaan parameter $\hat{\beta}_j$ dapat dihitung melalui rumus berikut.
+
+$$Var(\hat{\beta}_j) = \hat{\sigma}^2 C_{jj}$$
+Dengan matriks $C$ adalah matriks $(X'X)^{-1}$ 
+
+```{r}
+c <- data.frame(solve(t(x)%*%x))
+```
+
+Unsur diagonal dari matriks $C$ dapat digunakan untuk menghitung nilai galat baku dari setiap dugaan parameter. Galat baku ini dapat digunakan untuk menghitung selang kepercayaan dari dugaan yang dihasilkan.
+
+$$SE(\hat{\beta}_j) = \sqrt{Var(\hat{\beta}_j)} = \sqrt{\sigma^2 C_{jj}} = \hat{\sigma}\sqrt{c_{ii}}$$
+
+Misal ingin dihitung selang kepercayaan dari dugaan parameter $\beta_2$, maka
+
+```{r}
+y_hat <- x %*% beta_duga
+residuals <- y - y_hat
+n <- nrow(x)
+p <- ncol(x)
+KTG <- sum(residuals^2) / (n - p) 
+
+c22 <- c[2,2]
+
+(se.b2 <- sqrt(KTG*c22))
+```
+
+```{r}
+alfa <- 0.05
+
+#Batas Bawah beta2
+(bb.b2 <- beta_duga[3,1] - abs(qt(alfa/2, df=n-p))*se.b2)
+```
+
+```{r}
+#Batas Atas beta2
+(ba.b2 <- beta_duga[3,1] + abs(qt(alfa/2, df=n-p))*se.b2)
+```
+
+Dengan demikian, kita dapat ketahui selang kepercayaan untuk $\hat{\beta}_2$ sebagai berikut.
+$$−0.7279<\hat{\beta}_2<2.1135$$
+
+Pada kasus selang kepercayaan $\hat{\beta}_2$ di atas, didapati bahwa dugaan parameter berada dalam rentang yang mengandung nilai 0. Dengan demikian, dapat dimaknai bahwa diduga nilai parameter $\hat{\beta}_2$ bernilai 0 atau tidak signifikan dalam taraf nyata 5%.
+
+
+# Dengan Fungsi
+
+```{r}
+model1 <- lm(formula = PPM ~ ., data = dt)
+summary(model1)
+```
+
+Dugaan parameter model secara matriks dan fungsi menghasilkan angka yang sama, sehingga perhitungan matriks memang sudah tepat. Pada ringkasan model ini dapat dilihat bahwa tidak ada parameter yang signifikan pada taraf nyata 5%, namun secara simultan model ini signifikan dengan nilai p yang lebih kecil dari alpha yaitu 0.0148. Hal ini mengindikasi model yang buruk, kemungkinan terjadi pelanggaran asumsi sisaan maupun multikolinearitas, yang ditunjukkan pula dengan perubahan tanda korelasi pada peubah RLS.
+
+# Pemeriksaan Multikoliniearitas
+
+```{r}
+vif(model1)
+```
+
+Hasil uji ini menunjukkan peubah PDRB memiliki nilai VIF yang sangat tinggi (>10), bahkan peubah IPM, RLS, dan PKB juga tergolong tinggi (>5). Pada analisis kali ini, penanganan dilakukan dengan menghapus dua peubah dengan VIF tertinggi yaitu PDRB dan RLS.
+
+# Pemodelan Kedua
+
+```{r}
+model2 <- lm(PPM ~ IPM + PBH + ASL + TPT + PKB, data = dt)
+summary(model2)
+```
+
+Persamaan yang terbentuk adalah
+$$\hat{PPM}=37.2237−0.1500IPM+0.4272PBH−0.1050ASL−1.7176TPT+0.0599PKB$$
+```{r}
+vif(model2)
+```
+
+Model hasil reduksi peubah menunjukkan bahwa nilai VIF < 10 sehingga dinyatakan tidak terjadi multikolinearitas. Namun seluruh parameter masih tidak signifikan, padahal secara simultan model ini sudah signifikan. Artinya ada permasalahan lain yang mungkin belum tertangani, perlu dilakuan uji asumsi dan pemeriksaan pencilan, leverage, dan amatan berpengaruh
+
+# Pemodelan Dummy
+
+Untuk melakukan pemodelan regresi dengan peubah dummy, peubah kualitatif harus diubah menjadi tipe faktor agar bisa dilakukan regresi. Nilai yang menjadi referensi pemodelan jika langsung menggunakan `as.factor()` adalah nilai dengan urutan abjad pertama, pada data ini adalah “Agak Rentan”
+
+```{r}
+data$UHH <- as.factor(data$UHH)
+str(data)
+```
+
+```{r}
+model3 <- lm(PPM ~ ., data = data)
+summary(model3)
+```
+
+Persamaan yang terbentuk dari pemodelan ini adalah sebagai berikut:
+$$\hat{PPM}=38.5656−0.5109IPM−0.5993RLS+0.4130PBH−0.0473ASL−2.5701TPT+0.0012PDRB+0.2579PKB−4.8089UHH_{AgakTahan}−10.0811UHH_{SangatTahan}−3.0576_{UHHTahan}$$
+
+Interpretasi pada peubah dengan nilai kuantitatif sama seperti interpretasi biasanya, yang berbeda hanya pada peubah dummynya. Pada persamaan tersebut, interpretasi yang dapat ditulis adalah sebagai berikut\
+1. Wilayah dengan kondisi UHH Agak Tahan memiliki dugaan rata-rata persentase penduduk miskin 4.8089% lebih rendah dibanding dengan wilayah yang memiliki tingkat kondisi UHH Agak Rentan\
+2. Wilayah dengan kondisi UHH Sangat Tahan memiliki dugaan rata-rata persentase penduduk miskin 10.0811% lebih rendah dibanding dengan wilayah yang memiliki tingkat kondisi UHH Agak Rentan\
+3. Wilayah dengan kondisi UHH Tahan memiliki dugaan rata-rata persentase penduduk miskin 3.0576% lebih rendah dibanding dengan wilayah yang memiliki tingkat kondisi UHH Agak Rentan\
+
+# Uji Hipotesis Kesamaan Parameter Regresi
+
+Misal ingin dilakukan pemodelan dengan peubah respon Persentase Penduduk Miskin dengan 4 peubah penjelas, yaitu IPM, RLS, TBH, TPT
+
+```{r}
+model4 <- lm(PPM ~ IPM + RLS + PBH + TPT, data = dt)
+summary(model4)
+```
+
+```{r}
+vif(model4)
+```
+
+Regresi yang dihasilkan tidak mengalami masalah multikolinearitas. Hasil tersebut menunjukkan bahwa peubah PBH dan TPT signifikan pada taraf nyata 5%, sedangkan IPM dan RLS tidak signifikan. Berikut adalah persamaan yang terbentuk
+
+$$\hat{PPM}=51.3386−0.7469IPM+2.9004RLS+1.0000PBH−2.9849TPT$$
+
+Hasil pemodelan tersebut dapat dilakukan serangkaian uji untuk memeriksa apakah $β_3$dan $β_4$ dapat diasumsikan sama ketika parameter lainnya tidak signifikan atau diasumsikan sama dengan nol.
+
+Hipotesis yang diuji adalah
+
+$$H_0: β3=β4$$
+$$H_1: β3≠β4$$
+
+Karena peubah IPM dan RLS tidak signifikan maka dapat diasumsikan nol sehingga model dapat disederhanakan menjadi:
+
+$$PPM=β_0+β_3PBH+β_4TPT+ε$$
+Jika $H_0$ benar $(β_3=β_4=β_1')$, model bisa ditulis ulang sebagai
+
+$$PPM=β_0+β_1' (PBH+TPT)+ε$$
+
+```{r}
+# Buat peubah baru
+dt$X_new <- dt$PBH + dt$TPT
+
+# Model penuh (Full Model)
+model_full <- lm(PPM ~ PBH + TPT, data = dt)
+
+# Model terbatas (Restricted Model)
+model_restricted <- lm(PPM ~ X_new, data = dt)
+
+# Bandingkan dengan Uji F
+anova(model_restricted, model_full)
+```
+
+Hasil perbandingan menunjukkan bahwa nilai p kurang dari alpha sehingga dapat disimpulkan bahwa tolak H0, artinya peubah PBH dan TPT berbeda secara signifikan sehingga tidak dapat digabung. Selanjutnya daoat dipilih apakah akan menggunakan peubah dengan 4 peubah atau hanya 2 peubah berdasarkan indikator Adjusted R-Squared, AIC, dan BIC.
+
+```{r}
+model_all <- lm(PPM ~ IPM + RLS + PBH + TPT, data = dt)
+summary(model_all)
+```
+
+```{r}
+model_signif <- lm(PPM ~ PBH + TPT, data = dt)
+summary(model_signif)
+```
+
+```{r}
+perbandingan <- data.frame(
+  Model = c("Peubah Penuh", "Peubah Signifikan"),
+  Adjusted_R2 = as.numeric(c(summary(model_all)$adj.r.squared, summary(model_signif)$adj.r.squared)),
+  AIC = as.numeric(c(AIC(model_all), AIC(model_signif))),
+  BIC = as.numeric(c(BIC(model_all), BIC(model_signif)))
+)
+perbandingan
+```
+
+Berdasarkan indikator Adjusted R square, AIC, dan BIC maka model dengan hanya dua peubah dipilih sebagai model yang terbaik. Persamaan yang terbentuk adalah sebagai berikut
+
+$$\hat{PPM}=25.6845+0.8096PBH−2.9286TPT$$
+Interpretasi:\
+1. Dugaan rataan persentase penduduk miskin jika PBH dan TPT bernilai 0 adalah 25.6845%\
+2. Dugaan rataan persentase penduduk miskin akan meningkat 0.8096% apabila rata-rata persentase buta huruf meningkat satu persen dengan asumsi tingkat pengangguran terbuka konstan\
+3. Dugaan rataan persentase penduduk miskin akan menurun 2.9286% apabila rata-rata tingkat pengangguran terbuka meningkat satu persen dengan asumsi persentase buta huruf konstan\
