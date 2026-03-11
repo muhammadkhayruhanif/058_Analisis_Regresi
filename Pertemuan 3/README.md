@@ -122,7 +122,7 @@ dapat dituliskan sebagai Jumlah Kuadrat Regresi (JKR), Jumlah Kuadrat
 Galat (JKG), dan Jumlah Kuadrat Total (JKT) dengan perhitungan sebagai
 berikut.
 
-$$JKR = \sum_{i=1}^n (\hat{y}_i - \bar{y})^2 ; JKG = \sum_{i=1}^n (y_i - \hat{y})^2 ; JKT = \sum_{i=1}^n (y_i - \bar{y})^2$$
+$$ JKR = \sum_{i=1}^n (\hat{y}_i - \bar{y})^2 ; JKG = \sum_{i=1}^n (y_i - \hat{y})^2 ; JKT = \sum_{i=1}^n (y_i - \bar{y})^2 $$ 
 Hubungan antara ketiganya dapat pula dituliskan sebagai berikut.
 
 $$JKT = JKR + JKG$$ Nilai penguraian keragaman ini dapat diamati pula
@@ -231,7 +231,7 @@ abs(qt(0.025, df = n-2))
 Sementara itu, ragam dan t-hitung dari dugaan parameter $\beta_1$ dapat
 diperoleh dari perhitungan berikut.
 
-$$\text{S}_{\hat{\beta_1}} = \sqrt{\frac{KTG}{\sum_{i=1}^{n}(x_i - \bar{x})^2}} ; t_{h} = \frac{\hat{\beta_1} - \beta_1}{S_{\hat{\beta_1}}}$$
+$$ \text{S}_{\hat{\beta_1}} = \sqrt{\frac{KTG}{\sum_{i=1}^{n}(x_i - \bar{x})^2}} ; t_{h} = \frac{\hat{\beta_1} - \beta_1}{S_{\hat{\beta_1}}} $$
 
 Nilai $\text{S}_{\hat{\beta_1}}$ dapat dihitung dengan sintaks sebagai
 berikut
@@ -351,4 +351,5 @@ individu Y ketika nilai x=10 adalah -160725.2. Selain itu, diindikasikan
 juga bahwa dalam taraf kepercayaan 95%, diyakini bahwa nilai amatan
 individu Y ketika nilai x=10 berada dalam selang -209804.5 hingga
 -111645.9.
+
 
