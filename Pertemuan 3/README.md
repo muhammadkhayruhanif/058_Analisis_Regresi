@@ -122,7 +122,7 @@ dapat dituliskan sebagai Jumlah Kuadrat Regresi (JKR), Jumlah Kuadrat
 Galat (JKG), dan Jumlah Kuadrat Total (JKT) dengan perhitungan sebagai
 berikut.
 
-$$\text{JKR} = \sum_{i=1}^{n} (\hat{y}_i - \bar{y})^2 ; \text{JKG} = \sum_{i=1}^{n} (y_i - \hat{y})^2 ; \text{JKT} = \sum_{i=1}^{n} (y_i - \bar{y})^2$$
+$$JKR = \sum_{i=1}^n (\hat{y}_i - \bar{y})^2 ; JKG = \sum_{i=1}^n (y_i - \hat{y})^2 ; JKT = \sum_{i=1}^n (y_i - \bar{y})^2$$
 Hubungan antara ketiganya dapat pula dituliskan sebagai berikut.
 
 $$JKT = JKR + JKG$$ Nilai penguraian keragaman ini dapat diamati pula
@@ -351,3 +351,4 @@ individu Y ketika nilai x=10 adalah -160725.2. Selain itu, diindikasikan
 juga bahwa dalam taraf kepercayaan 95%, diyakini bahwa nilai amatan
 individu Y ketika nilai x=10 berada dalam selang -209804.5 hingga
 -111645.9.
+
