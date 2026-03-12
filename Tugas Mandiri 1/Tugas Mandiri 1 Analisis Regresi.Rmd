@@ -1,0 +1,203 @@
+---
+title: "Tugas Mandiri Analisis Regresi"
+author: "Muhammad Khayruhanif"
+date: "2026-03-09"
+output: rmdformats::readthedown
+---
+```{r}
+library(readxl)
+data <- read_xlsx("C:\\Users\\ASUS\\Downloads\\Tugas Mandiri 1 Analisis Regresi.xlsx", sheet="Sampling")
+data
+```
+```{r}
+colnames(data) <- c("Id", "X", "Y")
+head(data)
+```
+
+```{r}
+plot(data$X, data$Y,
+     main="Rataan Lama Sekolah VS IPM",
+     xlab="Rataan lama sekolah",
+     ylab="IPM (Indeks Pembangunan Manusia)")
+```
+
+```{r}
+cat("Eksplorasi data X:\n")
+summary(data$X)
+
+cat("\n")
+
+cat("Eksplorasi data Y:\n")
+summary(data$Y)
+```
+
+```{r}
+par(mfrow=c(1,2))
+
+boxplot(data$X,
+        main="Rataan lama sekolah")
+
+boxplot(data$Y,
+        main="IPM")
+```
+
+### Koefisien Regresi
+$$ \hat y_i = \hat\beta_0 + \hat\beta_1 x_i, i = 1, 2, 3, \ldots, n$$
+```{r}
+x <- data$X
+y <- data$Y
+```
+
+```{r}
+n <- nrow(data)
+
+b1 <- (sum(x*y)-sum(x)*sum(y)/n)/(sum(x^2)-(sum(x)^2/n))
+b0 <- mean(y)-b1*mean(x)
+
+cat("Koefisien b1:", b1, "\n")
+```
+
+```{r}
+cat("Koefisien b0:", b0, "\n")
+```
+
+```{r}
+model <- lm(Y~X, data)
+summary(model)
+```
+
+```{r}
+ANOVA.MODEL <- aov(model)
+ANOVA.MODEL
+```
+
+
+```{r}
+cat("JKR:", JKReg, "\n")
+cat("JKG:", JKG, "\n")
+cat("JKT:", JKT, "\n")
+
+cat("db regresi:", dbReg, "\n")
+cat("db galat:", dbg, "\n")
+cat("db total", dbt)
+```
+
+```{r}
+(p_Fhit <- 1-pf(Fhit, dbReg, dbg, lower.tail = F))
+```
+
+### Signifikansi Simultan (F)
+Menunjukkan signifikansi dan kebaikan model secara simultan (bersamaan seluruh peubah) yang menjelaskan model secara keseluruhan memiliki hubungan berarti antara X dan Y
+```{r}
+galat<-y-(b0+b1*x)
+
+JKG <- sum((y - (b0+b1*x))^2)
+JKReg <- sum(((b0+b1*x)- mean(y))^2)
+JKT <- sum((y - mean(y))^2)
+JKT <- JKReg+JKG
+
+dbReg <- 1
+dbg <- n-2
+dbt <- n-1
+
+(Fhit <- (JKReg/dbReg)/(JKG/dbg))
+```
+
+### Standar Error Parameter Regresi
+Menunjukkan seberapa besar ketidakpastian dalam estimasi koefisien
+```{r}
+galat <- y-(b0+b1*x)
+ragam_galat <- sum(galat^2)/(n-2)
+
+se_b0 <- sqrt(ragam_galat*(1/n+mean(x)^2/sum((x-mean(x))^2)))
+se_b1 <- sqrt(ragam_galat/sum((x-mean(x))^2))
+
+cat("Standar error b0:", se_b0, "\n") 
+```
+
+```{r}
+cat("Standar error b1:", se_b1, "\n")
+```
+
+```{r}
+t_table <- abs(qt(0.025, df = n-2))
+t_table
+```
+
+```{r}
+# Selang kepercayaan beta0
+lower_b0 <- b0 - t_table * se_b0
+upper_b0 <- b0 + t_table * se_b0
+cat("Selang kepercayaan beta0: [", lower_b0, ", ", upper_b0, "]\n")
+```
+
+```{r}
+# Selang kepercayaan beta1
+lower_b1 <- b1 - t_table * se_b1
+upper_b1 <- b1 + t_table * se_b1
+cat("Selang kepercayaan beta1: [", lower_b1, ", ", upper_b1, "]\n")
+```
+Sehigga dapat disimpulkan bahwa pada taraf signifikansi 5%, selang kepercayaan untuk parameter β0 adalah [0.1475278,  0.4493215] dan untuk parameter β1 adalah [0.02671919,  0.0456377]
+
+### Signifikansi Parameter (nilai-t)
+Menunjukkan tingkat signifikansi secara parsial dari setiap koefisien peubah berdasarkan nilai t dan probabilitas nilai p
+```{r}
+t_b0 <- b0/se_b0
+t_b1 <- b1/se_b1
+p_b0 <- 2*pt(-abs(t_b0 ),df<-n-2)
+p_b1 <- 2*pt(-abs(t_b1 ),df<-n-2)
+
+cat("Nilai t pada b0 adalah", t_b0, "dengan nilai p sebesar", p_b0, "\n")
+```
+
+```{r}
+cat("Nilai t pada b1 adalah", t_b1, "dengan nilai p sebesar", p_b1, "\n") 
+```
+Nilai p kurang dari alpha 0.05 untuk b0 maupun b1 sehingga signifikan pada taraf nyata 5%
+
+### Koefisien Determinasi dan Penyesuaiannya
+pada analisis regresi sederhana, koefisien determinasi yang digunakan adalah multiple R Squared, sedangkan regresi linier berganda menggunakan adjusted R Squared yang disesuaikan dengan banyak peubah
+```{r}
+r <- (sum(x*y)-sum(x)*sum(y)/n)/
+sqrt((sum(x^2)-(sum(x)^2/n))*(sum(y^2)-(sum(y)^2/n)))
+Koef_det <- r^2
+cat("Nilai koefisien korelasi:", r, "\n")
+```
+
+```{r}
+cat("Nilai koefisien determinasi:", Koef_det)
+```
+
+```{r}
+Adj_R2 <- 1-((1-Koef_det)*(n-1)/(n-1-1))
+Adj_R2
+```
+
+### Menggunakan Fungsi lm()
+Memperoleh secara langsung nilai-nilai pada pemodelan regresi dari data yang kita miliki. hanya denggan mengeluarkan summary dan anova dari model yang terbentuk maka dapat diperoleh nilai parameter, signifikansinya, standar eror, koefisien determinasi, hingga ukuran keragamannya
+
+```{r}
+y.bar <- mean(y)
+plot(x,y)
+abline(model, col="red")
+text(30, 220, "Y_duga", adj = c(-0.1, 1.5), col = "red", cex = 0.8)
+abline(h=y.bar, col="blue")
+text(31, 185, "Y_bar", adj = c(-0.1, 1.5), col = "blue", cex = 0.8)
+```
+
+```{r}
+anova(model)
+```
+
+```{r}
+amatan.diduga <- data.frame(X=10)
+predict(model, amatan.diduga, interval = "confidence")
+```
+
+```{r}
+amatan.diduga <- data.frame(X=10)
+predict(model, amatan.diduga, interval = "prediction")
+```
+
+$$\hat{Y} = 0,2984 + 0,0362X$$
+Setiap kenaikan 1 tahun rata-rata lama sekolah, HDI dugaannya akan meningkat sebesar 0,0362 unit.
