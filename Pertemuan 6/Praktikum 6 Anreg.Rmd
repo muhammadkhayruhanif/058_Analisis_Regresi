@@ -1,0 +1,461 @@
+---
+title: "Praktikum 6 Anreg"
+author: "Muhammad Khayruhanif"
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    pandoc_args: --webtex
+---
+
+# Library
+
+```{r, warning = FALSE, message = FALSE}
+library(readxl) # untuk membaca data
+library(GGally) # untuk menghasilkan matriks hubungan antarpeubah
+library(corrplot) # untuk menghasilkan matriks korelasi
+library(dplyr) # untuk manipulasi data
+library(car) # untuk memeriksa multikolinearitas
+library(stargazer) # untuk menampilkan hasil perbandingan regresi
+library(lmtest) # untuk uji kehomogenan ragam sisaan dan saling bebas
+library(olsrr) # untuk pemeriksaan amatan tidak biasa
+```
+
+Data
+
+```{r}
+dt <- read_xlsx("C:\\Users\\ASUS\\Downloads\\Data6.xlsx")
+dt # menampilkan data
+```
+
+```{r}
+str(dt) # menampilkan tipe data setiap peubah
+```
+
+```{r}
+summary(dt) # menampilkan ringkasan data
+```
+
+Data yang digunakan adalah data dari 22 Kabupaten/Kota di Nusa Tenggara Timur pada Tahun 2022 dengan 1 peubah respon yaitu Persentase Penduduk Miskin (PPM) dan 5 peubah penjelas. Peubah tersebut adalah Indeks Pembangunan Manusia (IPM), Rata-rata Lama Sekolah (RLS), Persentase Penduduk yang Buta Huruf (PBH), Produk Domestik Regional Bruto (PDRB), persentase penduduk yang menggunakan kayu bakar (PKB).
+
+Untuk mempermudah dalam komputasi, karena peubah wilayah tidak digunakan, maka dapat dihapus. Pada praktikum kali ini akan dilakukan dua pemodelan, yakni model dengan seluruh peubah kuantitatif dan model dengan adanya peubah kualitatif, supaya lebih mudah dalam analisisnya maka akan dibentuk dua data berbeda.
+
+```{r}
+dt <- select(dt, -Wilayah)
+```
+
+# Eksplorasi Data
+
+## Peubah Respon
+
+```{r}
+hist(dt$PPM, main = "Sebaran Persentase Penduduk Miskin")
+```
+
+```{r}
+boxplot(dt$PPM, main = "Sebaran Persentase Penduduk Miskin")
+```
+
+## Peubah Pennjelas vs Peubah Respon
+
+### IPM 
+
+```{r}
+plot(dt$IPM, dt$PPM)
+```
+
+Hubungan antara peubah IPM dan PPM cenderung tidak linear, ada satu amatan dengan nilai X jauh dari amatan lainnya
+
+### RLS
+
+```{r}
+plot(dt$RLS, dt$PPM)
+```
+
+Hubungan antara peubah RLS dan PPM cenderung tidak linear, ada satu amatan dengan nilai X jauh dari amatan lainnya. Jika amatan tersebut disisihkan, hubungan linearitas akan lebih terlihat.
+
+### TPT
+
+```{r}
+plot(dt$PBH, dt$PPM)
+```
+
+Hubungan linearitas tampak antara peubah PBH dan PPM, tidak ada amatan dengan nilai yang jauh dari amatan lainnya
+
+### PDRB
+
+```{r}
+plot(dt$PDRB, dt$PPM)
+```
+
+Hubungan antara peubah PDRB dan PPM cenderung tidak linear, ada satu amatan dengan nilai X jauh dari amatan lainnya.
+
+# PKB
+
+```{r}
+plot(dt$PKB, dt$PPM)
+```
+
+Hubungan antara peubah PKB dan PPM cenderung tidak linear, ada satu amatan dengan nilai X jauh dari amatan lainnya. Jika amatan tersebut disisihkan, hubungan linearitas akan lebih terlihat.
+
+## Korelasi
+
+```{r}
+ggpairs(dt,
+        upper = list(continuous = wrap('cor', size = 3)),
+        title = "Matriks Scatterplot Data")
+```
+
+```{r}
+cor_matrix <- cor(dt, use = "complete.obs")
+
+corrplot(cor_matrix, method = "color", type = "lower",
+         col = colorRampPalette(c("red", "white", "blue"))(200),
+         addCoef.col = "black", tl.col = "black", tl.srt = 35)
+```
+
+
+Hasil matriks scatter plot dan korelasi menunjukkan bahwa peubah respon PPM memiliki hubungan positif dengan PBH dan PKB, serta hubungan negatif dengan IPM, RLS, dan PDRB. Semua peubah ini secara signifikan memiliki korelasi dengan PPM.
+
+Selain itu, terdapat korelasi tinggi antar peubah penjelas, baik lebih dari 0.5 maupun kurang dari -0.5. Beberapa di antaranya adalah:\
+1. RLS dan IPM memiliki korelasi 0.84.\
+2. PDRB dengan IPM dan RLS masing-masing sebesar 0.86 dan 0.82.\
+3. PKB dengan IPM dan PDRB menunjukkan korelasi negatif yang cukup kuat, yaitu -0.85 dan -0.9.\
+
+Korelasi yang tinggi ini mengindikasikan adanya potensi multikolinearitas, yang dapat mempengaruhi keakuratan model yang akan dibentuk.
+
+# Pemodelan
+
+```{r}
+model1 = lm(formula = PPM ~ ., data = dt)
+summary(model1)
+```
+
+
+Persamaan yang terbentuk adalah
+$$\hat{PPM}=2.8566−0.2622IPM−0.1350RLS+0.5495PBH+0.0007PDRB+0.3413PKB$$
+
+Pada ringkasan model ini dapat dilihat bahwa secara simultan minimal ada satu peubah penjelas yang berpengaruh signifikan terhadap PPM. Hal tersebut selaras karena terdapat dugaan parameter yang signifikan pada taraf nyata 5%, yaitu peubah PKB. Peubah PDRB mengalami perubahan tanda dalam dugaan parameternya jika dibandingkan dengan arah korelasi, sehingga mengindikasi ada permasalahan dalam model. Selanjutnya diperlukan pengujian asumsi pada model, dimulai dengan pemeriksaan multikolinearitas dilanjutkan dengan diagnosis sisaan
+
+# Pemeriksaan Multikolinearitas
+
+## Perubahan Peubah
+
+```{r}
+mod1 <- lm(PPM ~ ., dt[1:2])
+mod2 <- lm(PPM ~ ., dt[1:3])
+mod3 <- lm(PPM ~ ., dt[1:4])
+mod4 <- lm(PPM ~ ., dt[1:5])
+mod5 <- lm(PPM ~ ., dt)
+
+stargazer(mod1, mod2, mod3, mod4, mod5,
+          type = "text", single.row = TRUE)
+
+```
+
+Terdapat perubahan tanda arah korelasi pada peubah RLS dan PDRB, perubahan dugaan parameter juga cukup besar ketika ditambahkan peubah lainnya. Hasil ini mengindikasi adanya permasalahan dalam model.
+
+## Perubahan Banyak Data
+
+```{r}
+mod5_1 <- lm(PPM ~ ., dt[1:15,])
+stargazer(summary(mod5)$coefficients, summary(mod5_1)$coefficients,
+          type = "text",
+          font.size = "small")
+```
+
+Terdapat dugaan parameter yang mengalami perubahan besar ketika jumlah amatan berbeda, mengindikasi model bermasalah.
+
+## Akar Ciri
+
+```{r}
+x <- dt[-1]
+r <- cor(x)
+(ev <- eigen(r)$values)
+```
+
+```{r}
+# Simultan
+if ((max(ev) / min(ev)) <= 100) {
+  cat("Tidak ada multikolinearitas\n")
+} else if ((max(ev) / min(ev)) > 100 & (max(ev) / min(ev)) <= 1000) {
+  cat("Ada multikolinearitas yang lemah\n")
+} else {
+  cat("Ada multikolinearitas yang kuat\n")
+}
+```
+
+```{r}
+# Parsial
+if (all((max(ev) / ev) <= 1000)) {
+  cat("Tidak ada multikolinearitas\n")
+} else {
+  cat("Ada multikolinearitas pada peubah penjelas ke:", which((max(ev) / ev) > 1000), "\n")
+}
+```
+
+## Nilai VIF
+
+```{r}
+vif(model1)
+```
+
+Hasil pemeriksaan dengan akar ciri menyatakan tidak ada multikolinearitas pada model karena tidak ada nilai $k>100$ secara simultan. Nilai VIF juga menunjukkan tidak ada peubah yang VIF nya lebih dari 10, tetapi peubah PDRB memiliki nilai VIF yang mendekati 10 sehingga sangat berpotensi adanya hubungan linear yang kuat antara PDRB dengan peubah penjelas lainnya. Pada analisis kali ini, penanganan dilakukan dengan menghapus peubah bernilai VIF tinggi yaitu RLS karena merupakan unsur pembangun IPM.
+
+
+# Pemodelan Penyisihan Peubah
+
+```{r}
+model2 <- lm(PPM ~ IPM + PBH + PDRB + PKB, data = dt)
+summary(model2)
+```
+
+Persamaan yang terbentuk adalah
+
+$$\hat{PPM}=2.4478−0.2701IPM+0.5673PBH+0.0007PDRB+0.3404PKB$$
+
+Pada ringkasan model ini dapat dilihat bahwa secara simultan minimal ada satu peubah penjelas yang berpengaruh signifikan terhadap PPM. Hal tersebut selaras karena terdapat dugaan parameter yang signifikan pada taraf nyata 5%, yaitu peubah PKB. Peubah PDRB mengalami perubahan tanda dalam dugaan parameternya jika dibandingkan dengan arah korelasi, sehingga mengindikasi ada permasalahan dalam model.
+
+## Nilai VIF
+
+```{r}
+vif(model2)
+```
+
+Model hasil reduksi peubah menunjukkan bahwa nilai VIF < 10 sehingga dinyatakan tidak terjadi multikolinearitas. Namun masih ada peubah yang mengalami perubahan tanda arah korelasi. Artinya ada permasalahan lain yang mungkin belum tertangani, perlu dilakuan uji asumsi dan pemeriksaan pencilan, leverage, dan amatan berpengaruh
+
+# Pengujian Asumsi
+
+## Eksplorasi Grafik
+
+### Plot Sisaan vs Y duga
+
+```{r}
+plot(model2,1) 
+```
+
+1. Sisaan di sekitar 0 → Nilai harapan sisaan sama dengan nol\
+2. Lebar pita tidak sama untuk setiap nilai dugaan → ragam sisaan tidak homogen\
+3. Pola plot cenderung berbentuk corong → ragam sisaan tidak homogen\
+
+### Plot Sisaan vs Urutan
+
+```{r}
+plot(x = 1:dim(dt)[1],
+     y = model2$residuals,
+     type = 'b', 
+     ylab = "Residuals",
+     xlab = "Observation")
+```
+
+Tebaran tidak berpola → sisaan saling bebas, model pas, tetapi ada indikasi terdapat autokorelasi karena hampir menyerupai pola autokorelasi negatif
+
+### QQ plot
+
+```{r}
+plot(model2,2)
+```
+
+Amatan cenderung tidak mengikuti garis pola sehingga sisaan tidak menyebar normal
+
+## Uji Formal
+
+### Nilai harapan sisaan sama dengan nol
+
+```{r}
+t.test(model2$residuals,mu = 0,conf.level = 0.95)
+```
+
+Nilai p pada uji t sama dengan 1 yang lebih besar dari alpha 5%, sehingga dinyatakan asumsi nilai harapan sisaan sama dengan nol terpenuhi
+
+### Ragam sisaan homogen
+
+```{r}
+bptest(model2)
+```
+
+Nilai p pada uji breusch pagan sama dengan 0.965 yang lebih besar dari alpha 5%, sehingga dinyatakan asumsi ragam sisaan homogen terpenuhi
+
+### Sisaan saling bebas
+
+```{r}
+dwtest(model2)
+```
+
+Nilai p pada uji durbin watson sama dengan 0.863 yang lebih besar dari alpha 5%, sehingga dinyatakan asumsi sisaan saling bebas terpenuhi
+
+### Normalitas Sisaan
+
+```{r}
+shapiro.test(model2$residuals)
+```
+
+Nilai p pada uji shapiro wilk sama dengan 0.1918 yang lebih besar dari alpha 5%, sehingga dinyatakan asumsi normalitas sisaan terpenuhi
+
+Semua asumsi sisaan terpenuhi, tetapi model masih buruk, kemungkinan karena keberadaan amatan yang tidak biasa seperti pencilan, leverage, atau amatan berpengaruh
+
+# Pemeriksaan Amatan Tidak Biasa
+
+```{r}
+#fungsi
+ri_stud <- rstudent(model2)
+ri_stan <- rstandard(model2)
+hii_fungsi <- hatvalues(model2)
+
+#manual
+X <- model.matrix(model2)
+X_inv_xt <- X %*% solve(t(X) %*% X) %*% t(X)
+hii_manual <- diag(X_inv_xt)
+anova_model <- anova(model2)
+s <- sqrt(anova_model["Residuals", "Mean Sq"])
+ei <- model2$residuals
+ri_manual <- ei/(s*sqrt(1-hii_manual))
+
+nilai <- data.frame(ri_stud, ri_stan, ri_manual, hii_fungsi, hii_manual)
+nilai
+```
+
+## Pencilan
+
+```{r}
+for (i in 1:dim(nilai)[1]){
+  absri <- abs(nilai[,2])
+  pencilan <- which(absri > 2)
+}
+pencilan
+```
+
+Amatan ke-21 terdeteksi sebagai pencilan
+
+## Leverage
+
+```{r}
+n <- dim(dt)[1]
+p <- length(model2$coefficients)
+
+for (i in 1:dim(nilai)[1]){
+  cutoff <- 2*p/n
+  titik_leverage <- which(hii_fungsi > cutoff)
+}
+titik_leverage
+```
+
+Amatan ke-22 terdeteksi sebagai titik leverage
+
+```{r}
+ols_plot_resid_lev(model2)
+```
+
+Plot yang terbentuk dari fungsi `ols_plot_resid_lev()` menyatakan bahwa amatan ke-12 juga termasuk sebagai pencilan/outlier. Hal ini dikarenakan perbedaan rumusan yang dipakai pada `rstandard()` dan `rstudent()`. Jika diperhatikan dengan seksama, nilai rii menggunakan fungsi `rstandard()` pada amatan ke-12 mencapai nilai 1.96 yang memang dekat dengan 2 sehingga dapat dijadikan perhatian juga
+
+## Amatan Berpengaruh
+
+### Jarak Cook
+
+```{r}
+di <- cooks.distance(model2)
+f <- qf(0.05,p,n-p, lower.tail = F)
+data.frame(di, di>f)
+```
+
+```{r}
+cooks_crit = f
+model_cooks <- cooks.distance(model2)
+df <- data.frame(obs = names(model_cooks),
+                 cooks = model_cooks)
+ggplot(df, aes(y = cooks, x = obs)) +
+  geom_point() +
+  geom_hline(yintercept = cooks_crit, linetype="dashed") +
+  labs(title = "Cook's Distance",
+       subtitle = "Influential Observation ",
+       x = "Observation Number",
+       y = "Cook's")
+```
+
+Pemeriksaan amatan berpengaruh dengan jarak cook tidak dihasilkan nilai yang melebihi ambang batas
+
+### DFBETAS
+
+```{r}
+ols_plot_dfbetas(model2)
+```
+
+Hasil DFBETAS akan menunjukkan pengaruh observasi terhadap setiap koefisien regresi, sehingga ada output untuk setiap parameter regresi. DFBETAS mengukur seberapa besar koefisien regresi berubah jika suatu observasi dihapus dari model.
+
+### DFFITS
+
+```{r}
+ols_plot_dffits(model2)
+```
+
+Hasil DFFITS menunjukkan pengaruh observasi terhadap nilai prediksi Y, sehingga hanya menghasilkan satu output. DFFITS mengukur seberapa besar nilai prediksi $\hat{Y}_i$ berubah jika suatu observasi dihapus dari model, sehingga lebih tepat digunakan jika ingin melihat pengaruh observasi terhadap hasil model secara keseluruhan
+
+```{r}
+DFFITSi <- dffits(model2)
+
+amatan_berpengaruh <- vector("list", dim(nilai)[1])
+for (i in 1:dim(nilai)[1]) {
+  cutoff <- 2 * sqrt((p / n))
+  amatan_berpengaruh[[i]] <- which(abs(DFFITSi) > cutoff)
+}
+berpengaruh <- unlist(amatan_berpengaruh)
+amatan_berpengaruh <- sort(unique(berpengaruh))
+amatan_berpengaruh
+```
+
+Amatan ke-12 dan 21 termasuk amatan berpengaruh sehingga sangat riskan jika disisihkan. Perlu ditelusuri lebih lanjut
+
+# Pemodelan Penyisihan Amatan
+
+```{r}
+# gunakan peubah penjelas yang sudah diseleksi
+
+dt1 <- dt %>% slice(-12)
+model3 <- lm(PPM ~ IPM + PBH + PDRB + PKB, dt1)
+
+dt2 <- dt %>% slice(-21)
+model4 <- lm(PPM ~ IPM + PBH + PDRB + PKB, dt2)
+
+dt3 <- dt %>% slice(-22)
+model5 <- lm(PPM ~ IPM + PBH + PDRB + PKB, dt3)
+
+dt4 <- dt %>% slice(-c(12, 21))
+model6 <- lm(PPM ~ IPM + PBH + PDRB + PKB, dt4)
+
+dt5 <- dt %>% slice(-c(12, 22))
+model7 <- lm(PPM ~ IPM + PBH + PDRB + PKB, dt5)
+
+dt6 <- dt %>% slice(-c(21, 22))
+model8 <- lm(PPM ~ IPM + PBH + PDRB + PKB, dt6)
+
+dt7 <- dt %>% slice(-c(12, 21, 22))
+model9 <- lm(PPM ~ IPM + PBH + PDRB + PKB, dt7)
+```
+
+```{r}
+get_metrics <- function(model) {
+  adj_r2 <- summary(model)$adj.r.squared
+  sse <- sum(model$residuals^2)
+  return(c(adj_r2, sse))
+}
+
+model_metrics <- data.frame(
+  Model = c("Model 2", "Model 3", "Model 4", "Model 5", "Model 6",
+            "Model 7", "Model 8", "Model 9"),
+  Adjusted_R2 = sapply(list(model2, model3, model4, model5, 
+                            model6, model7, model8, model9), 
+                       function(m) get_metrics(m)[1]),
+  SSE = sapply(list(model2, model3, model4, model5, 
+                    model6, model7, model8, model9), 
+               function(m) get_metrics(m)[2])
+)
+
+print(model_metrics)
+```
+
+Berdasarkan hasil perbandingan tersebut, didapatkan bahwa model 4 yang menyisihkan amatan ke-21 memiliki nilai adjusted R square terbesar tetapi bukan SSE yang terkecil. SSE terkecil terdapat pada model 9 yang menyisihkan amatan ke-12, 21, dan 22
+
+```{r}
+stargazer(model2, model4, model9, type = "text", font.size = "small",
+          report = "vc*p")
+```
+
