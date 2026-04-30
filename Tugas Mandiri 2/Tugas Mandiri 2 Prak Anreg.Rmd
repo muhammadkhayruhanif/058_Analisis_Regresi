@@ -1,0 +1,249 @@
+---
+title: "Tugas Mandiri 2 Anreg"
+author: "Muhammad Khayruhanif"
+date: "2026-03-12"
+output: rmdformats::readthedown
+---
+
+```{r}
+library(readxl)
+
+data <- read_xlsx("C:\\Users\\ASUS\\Downloads\\DATA PENDIDIKAN_ANREG.xlsx", sheet="Data")
+head(data)
+```
+
+```{r}
+summary(data)
+```
+
+Data yang digunakan adalah data dari 63 negara.Sumber data berasal dari website statistik internasional yaitu: ourworldindata.org
+
+```{r}
+#colnames(data) <- c("Country", paste0("X", 1:9), "Y")
+#head(data)
+```
+
+```{r}
+par(mfrow=c(3,3))
+
+for (i in 2:10){
+  plot(data[[i]], data[[5]],
+       main=colnames(data)[i],
+       xlab=paste0("data ke-", i),
+       ylab="IQ")
+}
+```
+
+```{r}
+par(mfrow=c(3,3))
+
+for (i in 2:10){
+  hist(data[[i]],
+       main=colnames(data)[i],
+       xlab=paste0("data ke-", i))
+}
+```
+
+Keterangan:
+X1 = AverageYears -> Rataan lama sekolah dari masing-masing negara.
+X2 = YearsOfSchooling -> Lamanya sekolah dari berbagai negara.
+X3 = Mathematics -> Nilai skor PISA matematika dari berbagai negara pada tahun 2022.
+X4 = Science -> Nilai skor PISA sains dari berbagai negara pada tahun 2022.
+X5 = Reading -> Nilai skor literasi dari berbagai negara pada tahun 2022.
+Y  = HDI -> Indeks Pembangunan Manusia dari berbagai negara pada tahun 2022.
+
+```{r}
+X1 <- data$AverageYears
+X2 <- data$YearsOfSchooling
+X3 <- data$Mathematics
+X4 <- data$Science
+X5 <- data$Reading
+Y  <- data$HDI
+```
+
+```{r}
+library(GGally)
+
+dt <- data.frame(X1, X2, X3, X4, X5, Y)
+ggpairs(dt,
+        upper=list(continuous=wrap('cor', size=3)),
+        title="Matrix scatterplot data")
+```
+
+Berdasarkan skor korelasi dari masing2 peubah bebas terhadap peubah tak bebas, didapatkan nilai >0.5, hal ini berarti masing2 peubah bebas berkorelasi kuat dan positif terhadap peubah tak bebas.
+
+## PEMODELAN
+```{r}
+n <- nrow(dt)
+X0 <- rep(1,n)
+dt <- data.frame(X0, X1, X2, X3, X4, X5)
+df <- as.matrix(dt)
+```
+
+```{r}
+beta_duga <- solve(t(df)%*%df)%*%t(df)%*%Y
+beta_duga
+```
+Hasil tersebut menjelaskan bahwa persamaan yang terbentuk adalah
+
+\hat{Y} = 0.21954 + 0.01842(X1) + 0.01341(X2) + 0.00056(X3) - 0.00052(X4) + 0.00047(X5)
+
+```{r}
+model2 <- lm(Y ~ X1 + X2 + X3 + X4 + X5, data=dt)
+summary(model2)
+```
+
+Karena p-value < 0.05, maka Tolak H0. Artinya, minimal ada satu peubah bebas X1, X2, X3, X4, X5 yang berpengaruh signifikan terhadap peubah respon Y. 
+
+```{r}
+library(car)
+
+vif(model2)
+```
+
+peubah bebas X1 dan X2 tidak ada masalah multikolinearitas karena nilai VIF < 10, sedangkan untuk peubah bebas X3, X4, X5 ada masalah multikolinearitas dengan nilai VIF > 10 sehingga lebih baik dibuang dan model hanya menggunakan peubah bebas X1 dan X2 saja.
+
+Didapatkan model sebagai berikut Y = 0.21954 + 0.01842(X1) + 0.01341(X2)
+
+```{r}
+model2 <- lm(Y ~ X1 + X2, data=dt)
+summary(model2)
+```
+
+
+```{r}
+plot(model2,1) 
+```
+
+```{r}
+plot(x = 1:dim(dt)[1],
+     y = model2$residuals,
+     type = 'b', 
+     ylab = "Residuals",
+     xlab = "Observation")
+```
+
+```{r}
+plot(model2,2)
+```
+
+```{r}
+t.test(model2$residuals,mu = 0,conf.level = 0.95)
+```
+
+```{r}
+library(lmtest)
+
+bptest(model2)
+```
+
+Nilai p pada uji breusch pagan sama dengan 0.3284 yang lebih besar dari alpha 5%, sehingga dinyatakan asumsi ragam sisaan homogen terpenuhi.
+
+```{r}
+dwtest(model2)
+```
+
+Nilai p pada uji durbin watson sama dengan 0.08492 yang lebih besar dari alpha 5%, sehingga dinyatakan asumsi sisaan saling bebas terpenuhi.
+
+```{r}
+shapiro.test(model2$residuals)
+```
+
+Nilai p pada uji shapiro wilk sama dengan 0.7745 yang lebih besar dari alpha 5%, sehingga dinyatakan asumsi normalitas sisaan terpenuhi.
+
+```{r}
+#fungsi
+ri_stud <- rstudent(model2)
+ri_stan <- rstandard(model2)
+hii_fungsi <- hatvalues(model2)
+
+#manual
+X <- model.matrix(model2)
+X_inv_xt <- X %*% solve(t(X) %*% X) %*% t(X)
+hii_manual <- diag(X_inv_xt)
+anova_model <- anova(model2)
+s <- sqrt(anova_model["Residuals", "Mean Sq"])
+ei <- model2$residuals
+ri_manual <- ei/(s*sqrt(1-hii_manual))
+
+nilai <- data.frame(ri_stud, ri_stan, ri_manual, hii_fungsi, hii_manual)
+nilai
+```
+
+```{r}
+for (i in 1:dim(nilai)[1]){
+  absri <- abs(nilai[,2])
+  pencilan <- which(absri > 2)
+}
+pencilan
+```
+
+Amatan 18, 45, dan 63 terdeteksi sebagai pencilan.
+
+```{r}
+n <- dim(dt)[1]
+p <- length(model2$coefficients)
+
+for (i in 1:dim(nilai)[1]){
+  cutoff <- 2*p/n
+  titik_leverage <- which(hii_fungsi > cutoff)
+}
+titik_leverage
+```
+
+Amatan 8, 20, 36, 57 terdeteksi sebagai leverage.
+
+```{r}
+library(olsrr)
+
+ols_plot_resid_lev(model2)
+```
+
+```{r}
+di <- cooks.distance(model2)
+f <- qf(0.05,p,n-p, lower.tail = F)
+data.frame(di, di>f)
+```
+
+```{r}
+cooks_crit = f
+model_cooks <- cooks.distance(model2)
+df <- data.frame(obs = names(model_cooks),
+                 cooks = model_cooks)
+ggplot(df, aes(y = cooks, x = obs)) +
+  geom_point() +
+  geom_hline(yintercept = cooks_crit, linetype="dashed") +
+  labs(title = "Cook's Distance",
+       subtitle = "Influential Observation ",
+       x = "Observation Number",
+       y = "Cook's")
+```
+
+Pemeriksaan amatan berpengaruh dengan jarak cook tidak dihasilkan nilai yang melebihi ambang batas.
+
+```{r}
+ols_plot_dfbetas(model2)
+```
+
+```{r}
+ols_plot_dffits(model2)
+```
+
+```{r}
+DFFITSi <- dffits(model2)
+
+amatan_berpengaruh <- vector("list", dim(nilai)[1])
+for (i in 1:dim(nilai)[1]) {
+  cutoff <- 2 * sqrt((p / n))
+  amatan_berpengaruh[[i]] <- which(abs(DFFITSi) > cutoff)
+}
+berpengaruh <- unlist(amatan_berpengaruh)
+amatan_berpengaruh <- sort(unique(berpengaruh))
+amatan_berpengaruh
+```
+
+Amatan 20, 45, dan 63 termasuk amatan berpengaruh sehingga sangat riskan jika disisihkan. Perlu ditelusuri lebih lanjut.
+
+# Kesimpulan
+
+Model final yang digunakan adalah Y = 0.21954 + 0.01842(X1) + 0.01341(X2). Interpretasi model ini menunjukkan bahwa jika X1 dan X2 bernilai nol, maka Y sebesar 0.21954. Setiap kenaikan satu satuan X1 akan meningkatkan Y sebesar 0.01842, dan setiap kenaikan satu satuan X2 akan meningkatkan Y sebesar 0.01341, dengan asumsi peubah lainnya tetap.
