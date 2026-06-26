@@ -1,0 +1,168 @@
+---
+title: "Praktikum 8 Analisis Regresi"
+author: "Muhammad Khayruhanif"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown
+---
+
+# Package
+
+```{r}
+library(readxl)
+library(car) # untuk multikolinearitas
+library(olsrr) # untuk best subset
+library(MASS) # untuk forward, backward, dan stepwise
+library(glmnet) # untuk ridge dan lasso
+```
+
+# Uji F Parsial dan Sekuensial
+
+```{r}
+data(mtcars)
+head(mtcars)
+```
+Kita Pakai : Y = mpg, X1 = wt, X2 = hp, X3 = disp
+
+## F Sekuensial
+
+```{r}
+# Model 1: tanpa prediktor
+m1 <- lm(mpg ~ 1, data = mtcars)
+
+# Model 2: tambah wt
+m2 <- lm(mpg ~ wt, data = mtcars)
+
+# Model 3: tambah hp
+m3 <- lm(mpg ~ wt + hp, data = mtcars)
+
+# Model 4 : tambah disp
+m4 <- lm(mpg ~ wt + hp + disp, data = mtcars)
+
+```
+
+
+```{r}
+anova(m1, m2, m3, m4)
+```
+Variabel wt berpengaruh signifikan terhadap mpg (p < 0.001).
+Setelah memasukkan wt, variabel hp masih memberikan tambahan pengaruh yang signifikan (p ≈ 0.0018).
+Namun, setelah wt dan hp ada dalam model, variabel disp tidak memberikan pengaruh tambahan yang signifikan (p ≈ 0.93).
+
+Kesimpulan: Model yang cukup baik adalah mpg∼wt+hp, karena penambahan disp tidak meningkatkan kemampuan model secara signifikan.
+
+## F Parsial
+
+Akan diuji apakah hp signifikan setelah semua variabel lain dikontrol
+```{r}
+# full model
+full <- lm(mpg ~ wt + hp + disp, data = mtcars)
+
+# reduced (tanpa hp)
+red <- lm(mpg ~ wt + disp, data = mtcars)
+
+anova(red, full)
+```
+Variabel hp berpengaruh signifikan terhadap mpg setelah mengontrol wt dan disp (p < 0.05).
+
+
+# Data
+
+Data yang digunakan memiliki 29 amatan berupa Kabupaten/Kota di Papua dengan 1 peubah respon yaitu persentase penduduk miskin (PPM) dan 5 peubah penjelas, yaitu luas daerah (LD), angka harapan hidup (AHH), produk domestik regional bruto (PDRB), gaji bersih standar (GBS), dan laju pertumbuhan penduduk (LPD).
+
+```{r}
+data <- read_xlsx("C:\\Users\\ASUS\\Downloads\\Data.xlsx")
+data
+```
+
+# Pemodelan Awal
+
+```{r}
+model1 <- lm(PPM ~ ., data=data)
+summary(model1)
+```
+
+Persamaan yang terbentuk dari seluruh peubah tersebut menghasilkan nilai koefisien determinasi sebesar 56.17% dengan 2 parameter yang tidak signifikan yaitu peubah AHH dan GBS. Selanjutnya akan diperiksa ada tidaknya multikolinearitas pada model
+
+$\hat{PPM} = 67.21-0.0004LD-0.6338AHH-0.0003PDRB+0.0000GBS+1.127LPD$
+
+# Pemeriksaan Multikolinieritas
+
+```{r}
+vif(model1)
+```
+
+Hasil pemeriksaan nilai VIF menunjukkan semua peubah penjelas memiliki VIF<10 sehingga tidak ada multikolinearitas
+
+# Penyeleksian Peubah
+
+## Best Subset
+
+```{r}
+bs <- ols_step_best_subset(model1)
+bs
+```
+
+## Backward, Forward, dan Stepwise
+
+```{r}
+null<-lm(PPM ~ 1, data=data) # 1 here means the intercept 
+full<-lm(PPM ~ ., data=data)
+ 
+step(full, scope=list(lower=null, upper=full),data=data, direction='backward', trace=0)
+```
+
+```{r}
+step(null, scope=list(lower=null, upper=full),data=data, direction='forward', trace=0)
+```
+
+```{r}
+step(null, scope=list(lower=null, upper=full),data=data, direction='both', trace=0)
+```
+
+Hasil penyeleksian melalui best subset, backward, forward, dan stepwise menghasilkan model yang sama, yaitu dengan 4 peubah penjelas (PDRB, LD, LPD, dan AHH)
+
+```{r}
+model2 <- lm(PPM ~ PDRB + LD + LPD + AHH, data=data)
+summary(model2)
+```
+
+```{r}
+AIC(model2); BIC(model2)
+```
+
+Model yang dihasilkan memiliki 3 peubah penjelas yang signifikan pada taraf nyata 5% dan 1 yang tidak dengan nilai adjusted r square sebesar 56.93% yang lebih besar daripada model dengan semua peubah. Nilai AIC pada model ini adalah 196.35 dan BIC sebesar 204.55
+
+$$\hat{PPM} = 75.5360-0.0003PDRB-0.0004LD+1.1450LPD-0.6987AHH$$
+
+Jika pada metode seleksi peubah yang digunakan menghasilkan model yang berbeda, maka bisa dibandingkan nilai MSE, adjusted R-square, AIC, BIC, dan kriteria lainnya.
+
+# Shrinkage Methods
+
+## Ridge
+
+```{r}
+x <- as.matrix(data[, -1])
+y <- data$PPM
+
+rid <- cv.glmnet(x, y, alpha = 0, nfolds = 5)  # Ridge regression
+# secara default, nfolds = 10 sehingga akan buruk ketika n<30
+rid
+coef(rid, s = "lambda.min")
+```
+
+Model yang terbentuk menggunakan semua peubah penjelas, pemodelan ridge akan lebih terlihat berguna jika digunakan peubah yang terdapat multikolinearitas sehingga tidak perlu disisihkan ketika ada yang memiliki VIF > 10
+
+$\hat{PPM} = 56.7576-0.0003LD-0.4383AHH-0.0002PDRB+0.0000GBS+0.7441LPD$
+
+## Lasso
+
+```{r}
+lass <- cv.glmnet(x, y, alpha=1, nfolds = 5)
+lass
+coef(lass,s="lambda.min")
+```
+
+Lasso menghasilkan pemodelan regresi dengan penyusutan/penyeleksian peubah yang memiliki koefisien yang sangat mendekati atau bahkan tepat nol
+
+$$\hat{PPM}=61.1896−0.0003LD−0.4767AHH−0.0002PDRB+0.8874LPD$$
